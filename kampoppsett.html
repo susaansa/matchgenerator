@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<title>Kampoppsett – barnefotball</title>
+<script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --matcha: #7B9E4E;
+    --matcha-dark: #5A7A36;
+    --matcha-light: #EEF5E4;
+    --matcha-faint: #F4F8EE;
+    --ink: #1C1C1E;
+    --muted: #6E6E73;
+    --line: #D8E4CC;
+    --danger: #C0392B;
+    --warn-bg: #FFFBEB;
+    --warn-border: #F59E0B;
+    --cell-alt: #F9FCF5;
+    --radius: 10px;
+    --shadow: 0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--matcha-faint);
+    color: var(--ink);
+    margin: 0;
+    padding: 0;
+    line-height: 1.55;
+  }
+
+  /* Header banner */
+  .header-banner {
+    background: linear-gradient(135deg, var(--matcha-dark) 0%, var(--matcha) 100%);
+    color: #fff;
+    padding: 2.25rem 2rem 2rem;
+  }
+  .header-banner h1 {
+    font-size: 1.9rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.3rem;
+  }
+  .header-banner .subtitle {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.78);
+    margin: 0;
+  }
+  .header-banner .subtitle a { color: rgba(255,255,255,0.95); text-decoration: underline; text-underline-offset: 3px; }
+  .header-banner .subtitle a:hover { color: #fff; }
+
+  .container { max-width: 980px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  /* Cards / fieldsets */
+  fieldset {
+    border: none;
+    border-radius: var(--radius);
+    padding: 1.4rem 1.5rem 1.6rem;
+    margin: 0 0 1.25rem;
+    background: #fff;
+    box-shadow: var(--shadow);
+  }
+  legend {
+    padding: 0 0.5rem;
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--matcha-dark);
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 1rem; }
+  label { display: block; font-size: 0.83rem; font-weight: 600; margin-bottom: 0.3rem; color: var(--ink); }
+  label .hint { font-weight: 400; color: var(--muted); font-size: 0.78rem; }
+
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 1.5px solid var(--line);
+    border-radius: 7px;
+    font-size: 0.93rem;
+    font-family: inherit;
+    background: #fff;
+    color: var(--ink);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--matcha);
+    box-shadow: 0 0 0 3px rgba(123,158,78,0.18);
+  }
+  textarea { resize: vertical; min-height: 80px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.88rem; }
+
+  /* Buttons */
+  .actions { display: flex; gap: 0.65rem; flex-wrap: wrap; margin: 0.5rem 0 1.5rem; align-items: center; }
+  button {
+    font-family: inherit;
+    font-size: 0.93rem;
+    font-weight: 600;
+    padding: 0.6rem 1.25rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--matcha);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+  button:hover { background: var(--matcha-dark); box-shadow: 0 2px 8px rgba(90,122,54,0.25); }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity: 0.38; cursor: not-allowed; transform: none; box-shadow: none; }
+  button.secondary {
+    background: #fff;
+    color: var(--matcha-dark);
+    border: 1.5px solid var(--line);
+    box-shadow: none;
+  }
+  button.secondary:hover { background: var(--matcha-light); border-color: var(--matcha); box-shadow: none; }
+  button.danger { background: #fff; color: var(--danger); border: 1.5px solid #ecc; box-shadow: none; }
+  button.danger:hover { background: #fdf0f0; border-color: var(--danger); box-shadow: none; }
+
+  /* Club rows */
+  .clubs-col-header {
+    display: grid;
+    grid-template-columns: 2fr 56px 130px 90px 34px;
+    gap: 0.4rem;
+    padding: 0 0 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+  }
+  .club-row {
+    display: grid;
+    grid-template-columns: 2fr 56px 130px 90px 34px;
+    gap: 0.4rem;
+    margin-bottom: 0.45rem;
+    align-items: center;
+  }
+  .remove-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1.5px solid var(--line);
+    border-radius: 7px;
+    font-size: 1.1rem;
+    padding: 0.3rem 0;
+    line-height: 1;
+    width: 34px;
+    text-align: center;
+    box-shadow: none;
+  }
+  .remove-btn:hover { background: #fdf0f0; color: var(--danger); border-color: #ecc; }
+  .remove-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+  .remove-btn:disabled:hover { background: transparent; color: var(--muted); border-color: var(--line); }
+
+  /* Output */
+  #output { margin-top: 1.5rem; }
+  .summary {
+    background: var(--matcha-light);
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.85rem 1.1rem;
+    margin-bottom: 0.85rem;
+    font-size: 0.9rem;
+    color: var(--matcha-dark);
+  }
+  .summary strong { color: var(--ink); }
+  .warning {
+    background: var(--warn-bg);
+    border-left: 3px solid var(--warn-border);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.85rem;
+    font-size: 0.9rem;
+  }
+  .error { color: var(--danger); font-weight: 600; padding: 0.75rem 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    font-size: 0.93rem;
+    margin-bottom: 0.85rem;
+  }
+  th, td { text-align: left; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--line); }
+  th {
+    background: var(--matcha);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  tbody tr:hover { background: var(--matcha-faint); }
+  tbody tr:nth-child(even) { background: var(--cell-alt); }
+  tbody tr:nth-child(even):hover { background: var(--matcha-faint); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .table-actions { display: flex; gap: 0.5rem; margin: 0 0 1.5rem; flex-wrap: wrap; align-items: center; }
+  .table-actions button { font-size: 0.83rem; padding: 0.42rem 0.9rem; }
+  .copy-feedback { color: var(--matcha-dark); font-size: 0.85rem; font-weight: 600; }
+
+  /* Per-team cards */
+  .section-heading {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--matcha-dark);
+    font-weight: 700;
+    margin: 2rem 0 0.85rem;
+  }
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 1rem; }
+  .team-card {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 0.9rem 1rem;
+    border-top: 3px solid var(--matcha);
+  }
+  .team-card h4 { margin: 0 0 0.2rem; font-size: 0.95rem; font-weight: 700; color: var(--matcha-dark); }
+  .team-card .constraint-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    color: var(--matcha-dark);
+    background: var(--matcha-light);
+    border-radius: 4px;
+    padding: 0.1rem 0.45rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+  .team-card table { border: none; font-size: 0.82rem; margin: 0; box-shadow: none; border-radius: 0; }
+  .team-card th { font-size: 0.7rem; padding: 0.28rem 0.45rem; border-radius: 0; }
+  .team-card td { padding: 0.3rem 0.45rem; }
+  .team-card tbody tr:hover { background: var(--matcha-faint); }
+  .pause-row td { font-size: 0.74rem; padding: 0.1rem 0.45rem; font-style: italic; color: var(--muted); }
+  .pause-warn td { color: var(--danger); font-weight: 600; font-style: normal; }
+
+  /* Puljer */
+  .pulje-grid { display: flex; gap: 0.85rem; flex-wrap: wrap; margin-top: 0.75rem; }
+  .pulje-card {
+    background: var(--matcha-faint);
+    border: 2px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 0.65rem 0.8rem;
+    min-width: 130px;
+    flex: 1;
+    transition: border-color 0.15s, background 0.15s, border-style 0.1s;
+  }
+  .pulje-card.drag-over { border-color: var(--matcha); background: var(--matcha-light); border-style: solid; }
+  .pulje-header { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--matcha-dark); margin-bottom: 0.45rem; }
+  .pulje-count { font-size: 0.72rem; color: var(--muted); font-weight: 400; margin-left: 0.3rem; }
+  .team-chip {
+    display: block;
+    background: #fff;
+    border: 1.5px solid var(--line);
+    border-radius: 6px;
+    padding: 0.22rem 0.6rem;
+    font-size: 0.83rem;
+    font-weight: 500;
+    cursor: grab;
+    margin-bottom: 0.28rem;
+    user-select: none;
+    transition: border-color 0.12s, background 0.12s;
+    white-space: nowrap;
+  }
+  .team-chip:hover { border-color: var(--matcha); background: var(--matcha-light); }
+  .team-chip.dragging { opacity: 0.3; cursor: grabbing; }
+  .pulje-conflict { font-size: 0.74rem; color: var(--danger); margin-top: 0.35rem; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="header-banner">
+  <div style="max-width:980px;margin:0 auto;padding:0 1.5rem">
+    <h1>Kampoppsettgenerator</h1>
+    <p class="subtitle">Vibecodet av Susanne Sandell – <a href="mailto:susanne.sandell@gmail.com">gi beskjed</a> hvis du har forslag til forbedringer</p>
+  </div>
+</div>
+<div class="container">
+
+  <fieldset>
+    <legend>Lag og baner</legend>
+    <div style="margin-bottom:1.1rem">
+      <label>Klubber og antall lag <span class="hint">– maks 20 lag totalt</span></label>
+      <div class="clubs-col-header">
+        <span>Klubbnavn</span>
+        <span>Lag</span>
+        <span title="Ingen av lagene i klubben spiller kamp før dette klokkeslettet. La stå tomt for ingen begrensning.">Tidligste start</span>
+        <span title="Antall lag i klubben som allikevel kan starte fra arrangementets starttid, selv om Tidligste start er satt.">Unntak (ant.)</span>
+        <span></span>
+      </div>
+      <div id="clubsList"></div>
+      <button type="button" id="addClub" class="secondary" style="margin-top:0.5rem;font-size:0.85rem;padding:0.4rem 0.8rem">+ Legg til klubb</button>
+      <p style="font-size:0.78rem;color:var(--muted);margin:0.4rem 0 0"><em>Unntak</em>: hvis «Tidligste start» er satt, kan dette antall lag fra klubben likevel starte fra arrangementets starttid.</p>
+    </div>
+    <div>
+      <label for="fields">Baner <span class="hint">– ett per linje</span></label>
+      <textarea id="fields">Bane 1
+Bane 2
+Bane 3
+Bane 4</textarea>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Puljer</legend>
+    <div style="display:flex;gap:1.2rem;align-items:center;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:0.45rem;margin:0;font-size:0.93rem;cursor:pointer">
+        <input type="checkbox" id="usePuljer" style="width:auto;margin:0"> Bruk puljer
+      </label>
+      <div id="puljeConfig" style="display:none;gap:0.7rem;align-items:center;flex-wrap:wrap">
+        <label style="margin:0;font-size:0.88rem;white-space:nowrap">Antall puljer</label>
+        <input type="number" id="numPuljer" min="2" max="8" value="4" style="width:64px">
+        <button type="button" id="btnGenPuljer" class="secondary" style="font-size:0.84rem;padding:0.38rem 0.85rem">Generer puljer</button>
+      </div>
+    </div>
+    <div id="puljeDisplay"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Tid og runder</legend>
+    <div class="grid">
+      <div>
+        <label for="start">Starttid</label>
+        <input type="text" id="start" class="time-field" value="16:30" placeholder="HH:MM" maxlength="5">
+      </div>
+      <div>
+        <label for="end">Sluttid (siste kampstart)</label>
+        <input type="text" id="end" class="time-field" value="19:30" placeholder="HH:MM" maxlength="5">
+      </div>
+      <div>
+        <label for="duration">Kampvarighet (min)</label>
+        <input type="number" id="duration" min="1" value="13">
+      </div>
+      <div>
+        <label for="minPause">Min. pause (min)</label>
+        <input type="number" id="minPause" min="0" value="17">
+      </div>
+      <div>
+        <label for="maxPause">Maks pause (min)</label>
+        <input type="number" id="maxPause" min="0" value="90">
+      </div>
+      <div>
+        <label for="targetMatches">Kamper per lag <span class="hint">– tomt = maks mulig</span></label>
+        <input type="number" id="targetMatches" min="1" value="4">
+      </div>
+      <div>
+        <label for="priority">Viktigst å overholde</label>
+        <select id="priority">
+          <option value="matches">Antall kamper (4 per lag)</option>
+          <option value="pause">Maks pause (noen kan få 3 kamper)</option>
+        </select>
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="actions">
+    <button id="generate">Generer kampoppsett</button>
+    <button id="btnDownload" class="secondary" disabled>Last ned som Excel (.xlsx)</button>
+    <button id="clear" class="danger">Slett alt</button>
+  </div>
+
+  <div id="output"></div>
+</div>
+
+<script>
+'use strict';
+
+const MAX_TEAMS = 20;
+let lastResult = null;
+let currentPools = null;
+let currentPuljeTeams = null;
+let currentPuljeClubOf = null;
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function timeToMin(hhmm) { const [h,m] = hhmm.split(':').map(Number); return h*60+m; }
+function isValidTime(s) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(s); }
+
+function attachTimeFormat(input) {
+  input.addEventListener('input', e => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+    e.target.value = digits.length > 2 ? digits.slice(0,2) + ':' + digits.slice(2) : digits;
+  });
+  input.addEventListener('blur', e => {
+    const v = e.target.value.trim();
+    if (v && !isValidTime(v)) e.target.style.borderColor = 'var(--danger)';
+    else e.target.style.borderColor = '';
+  });
+  input.addEventListener('focus', e => { e.target.style.borderColor = ''; });
+}
+function minToTime(m) { return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
+
+// ---------- Club UI ----------
+function addClubRow(name='', count=1, earliest='', exceptions=0) {
+  const list = document.getElementById('clubsList');
+  const row = document.createElement('div');
+  row.className = 'club-row';
+  row.innerHTML = `
+    <input type="text" class="club-name" placeholder="Klubbnavn" value="${esc(name)}">
+    <input type="number" class="club-count" min="1" max="${MAX_TEAMS}" value="${count}">
+    <input type="text" class="club-earliest time-field" value="${earliest}" placeholder="HH:MM" maxlength="5">
+    <input type="number" class="club-exceptions" min="0" value="${exceptions}">
+    <button type="button" class="remove-btn" title="Fjern">×</button>
+  `;
+  row.querySelector('.remove-btn').addEventListener('click', () => { row.remove(); syncRemoveButtons(); });
+  attachTimeFormat(row.querySelector('.club-earliest'));
+  list.appendChild(row);
+  syncRemoveButtons();
+}
+
+function syncRemoveButtons() {
+  const rows = document.querySelectorAll('#clubsList .club-row');
+  rows.forEach(r => { r.querySelector('.remove-btn').disabled = rows.length <= 2; });
+}
+
+function readClubs() {
+  return [...document.querySelectorAll('#clubsList .club-row')].map(r => ({
+    name: r.querySelector('.club-name').value.trim(),
+    count: parseInt(r.querySelector('.club-count').value, 10) || 1,
+    earliest: r.querySelector('.club-earliest').value.trim(),
+    exceptions: parseInt(r.querySelector('.club-exceptions').value, 10) || 0
+  })).filter(c => c.name);
+}
+
+function expandTeams(clubs, globalStartMin) {
+  const teams = [], clubOf = [], earliestOf = [];
+  clubs.forEach(({ name, count, earliest, exceptions }) => {
+    const clubMin = earliest ? timeToMin(earliest) : null;
+    for (let i = 1; i <= count; i++) {
+      teams.push(count === 1 ? name : `${name} ${i}`);
+      clubOf.push(name);
+      const constrained = clubMin !== null && (i - 1) >= exceptions;
+      earliestOf.push(constrained ? clubMin : globalStartMin);
+    }
+  });
+  return { teams, clubOf, earliestOf };
+}
+
+// ---------- Config ----------
+function readConfig() {
+  const clubInputs = readClubs();
+  const fields = document.getElementById('fields').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const start = document.getElementById('start').value;
+  const end   = document.getElementById('end').value;
+  const duration  = parseInt(document.getElementById('duration').value, 10);
+  const minPause  = parseInt(document.getElementById('minPause').value, 10);
+  const maxPause  = parseInt(document.getElementById('maxPause').value, 10);
+  const targetRaw  = document.getElementById('targetMatches').value.trim();
+  const target     = targetRaw === '' ? null : parseInt(targetRaw, 10);
+  const strictPause = document.getElementById('priority').value === 'pause';
+
+  const errors = [];
+  const totalTeams = clubInputs.reduce((s,c) => s+c.count, 0);
+  if (clubInputs.length < 2) errors.push('Minst 2 klubber kreves.');
+  if (totalTeams > MAX_TEAMS) errors.push(`Maks ${MAX_TEAMS} lag totalt (nå: ${totalTeams}).`);
+  if (totalTeams < 2) errors.push('Minst 2 lag totalt.');
+  if (!fields.length) errors.push('Minst 1 bane kreves.');
+  if (!start || !end) errors.push('Start- og sluttid må settes.');
+  if (start && !isValidTime(start)) errors.push('Ugyldig starttid – bruk format HH:MM (f.eks. 16:30).');
+  if (end && !isValidTime(end)) errors.push('Ugyldig sluttid – bruk format HH:MM.');
+  if (!duration || duration < 1) errors.push('Kampvarighet må være ≥ 1 min.');
+  if (isNaN(minPause) || minPause < 0) errors.push('Min pause ugyldig.');
+  if (isNaN(maxPause) || maxPause < minPause) errors.push('Maks pause må være ≥ min pause.');
+  if (start && end && timeToMin(end) <= timeToMin(start)) errors.push('Sluttid må være etter starttid.');
+  if (errors.length) return { errors };
+
+  const startMin = timeToMin(start);
+  const { teams, clubOf, earliestOf } = expandTeams(clubInputs, startMin);
+
+  let poolOf = null;
+  if (document.getElementById('usePuljer').checked && currentPools) {
+    const totalInPools = currentPools.reduce((s, p) => s + p.length, 0);
+    if (totalInPools === teams.length) {
+      poolOf = buildPoolOf(teams.length, currentPools);
+    } else {
+      errors.push('Puljene stemmer ikke med antall lag – generer puljer på nytt.');
+      return { errors };
+    }
+  }
+
+  return { teams, clubOf, earliestOf, fields, startMin, endMin: timeToMin(end), duration, minPause, maxPause, target, strictPause, poolOf, errors: [] };
+}
+
+// ---------- Scheduler ----------
+function roundUpToQuarter(mins) {
+  return Math.ceil(mins / 15) * 15;
+}
+
+function generate(cfg) {
+  const { teams, clubOf, earliestOf, fields, startMin, endMin, duration, minPause, maxPause, target, strictPause, poolOf } = cfg;
+  const n = teams.length, nF = fields.length;
+  const played     = new Array(n).fill(0);
+  const lastEnd    = new Array(n).fill(-Infinity);
+  const fieldFree  = new Array(nF).fill(roundUpToQuarter(startMin));
+  const pairPlayed = {};
+  const clubPlayed = teams.map(() => ({}));
+  const longPauseCount = new Array(n).fill(0);
+  const pk = (a, b) => a < b ? `${a}-${b}` : `${b}-${a}`;
+  const schedule = [], warnings = [];
+
+  while (true) {
+    if (target !== null && played.every(p => p >= target)) break;
+
+    let fIdx = -1, fTime = Infinity;
+    for (let f = 0; f < nF; f++) {
+      const candidate = roundUpToQuarter(fieldFree[f]);
+      if (candidate + duration > endMin) continue;
+      if (candidate < fTime) { fTime = candidate; fIdx = f; }
+    }
+    if (fIdx === -1) break;
+
+    const slotStart = fTime, slotEnd = slotStart + duration;
+
+    const busy = new Set();
+    schedule.forEach(m => {
+      if (m.s < slotEnd && m.e > slotStart) { busy.add(m.i); busy.add(m.j); }
+    });
+
+    const buildCands = (clubCap) => {
+      const c = [];
+      for (let i = 0; i < n; i++) {
+        if (busy.has(i)) continue;
+        if (target !== null && played[i] >= target) continue;
+        if (slotStart < earliestOf[i]) continue;
+        if (lastEnd[i] !== -Infinity && slotStart - lastEnd[i] < minPause) continue;
+        for (let j = i + 1; j < n; j++) {
+          if (busy.has(j)) continue;
+          if (target !== null && played[j] >= target) continue;
+          if (slotStart < earliestOf[j]) continue;
+          if (clubOf[i] === clubOf[j]) continue;
+          if (poolOf && poolOf[i] !== poolOf[j]) continue;
+          if (pairPlayed[pk(i, j)]) continue;
+          if (lastEnd[j] !== -Infinity && slotStart - lastEnd[j] < minPause) continue;
+          if (clubCap !== null && (clubPlayed[i][clubOf[j]] || 0) >= clubCap) continue;
+          if (clubCap !== null && (clubPlayed[j][clubOf[i]] || 0) >= clubCap) continue;
+          c.push({ i, j, score: score(i, j, played, pairPlayed, pk, lastEnd, slotStart, maxPause, clubOf, clubPlayed, strictPause, longPauseCount) });
+        }
+      }
+      return c;
+    };
+
+    let cands = buildCands(1);
+    if (!cands.length) cands = buildCands(2);
+    if (!cands.length) cands = buildCands(null);
+
+    if (!cands.length) { fieldFree[fIdx] = slotStart + 15; continue; }
+
+    cands.sort((a, b) => a.score - b.score);
+    const best = cands[0];
+
+    [best.i, best.j].forEach(idx => {
+      if (lastEnd[idx] !== -Infinity && slotStart - lastEnd[idx] > maxPause) {
+        warnings.push(`${teams[idx]}: ${slotStart - lastEnd[idx]} min pause (maks ${maxPause}) før kamp ${minToTime(slotStart)}.`);
+        longPauseCount[idx]++;
+      }
+    });
+
+    schedule.push({ s: slotStart, e: slotEnd, field: fields[fIdx], home: teams[best.i], away: teams[best.j], i: best.i, j: best.j });
+    played[best.i]++; played[best.j]++;
+    lastEnd[best.i] = slotEnd; lastEnd[best.j] = slotEnd;
+    fieldFree[fIdx] = slotEnd;
+    pairPlayed[pk(best.i, best.j)] = (pairPlayed[pk(best.i, best.j)] || 0) + 1;
+    clubPlayed[best.i][clubOf[best.j]] = (clubPlayed[best.i][clubOf[best.j]] || 0) + 1;
+    clubPlayed[best.j][clubOf[best.i]] = (clubPlayed[best.j][clubOf[best.i]] || 0) + 1;
+  }
+
+  return { schedule, warnings, played, teams, fields, duration, target, earliestOf, startMin, minPause };
+}
+
+function score(i, j, played, pp, pk, lastEnd, t, maxPause, clubOf, clubPlayed, strictPause, longPauseCount) {
+  const base = Math.min(...played);
+  const balance = (played[i] - base) + (played[j] - base);
+  const clubRepI = clubPlayed[i][clubOf[j]] || 0;
+  const clubRepJ = clubPlayed[j][clubOf[i]] || 0;
+  // Kvadratisk straff: 2. gang mot samme klubb koster 4x, 3. gang koster 9x
+  const clubRepScore = (clubRepI * clubRepI + clubRepJ * clubRepJ) * 50000;
+  const wI = lastEnd[i] === -Infinity ? 0 : t - lastEnd[i];
+  const wJ = lastEnd[j] === -Infinity ? 0 : t - lastEnd[j];
+  const thr = maxPause * 0.5;
+  const baseUrgWeight = strictPause ? 60000 : 20000;
+  const urgI = Math.max(0, wI - thr) * (longPauseCount[i] >= 1 ? 500000 : baseUrgWeight);
+  const urgJ = Math.max(0, wJ - thr) * (longPauseCount[j] >= 1 ? 500000 : baseUrgWeight);
+  return -(urgI + urgJ)
+       + clubRepScore
+       + balance * 500
+       + (played[i] + played[j]) * 10
+       + Math.random() * 300;
+}
+
+// ---------- Render ----------
+function render(res) {
+  const out = document.getElementById('output');
+  out.innerHTML = '';
+  if (!res.schedule.length) { out.innerHTML = '<p class="error">Ingen kamper kunne plasseres.</p>'; return; }
+
+  const sorted = [...res.schedule].sort((a,b) => a.s - b.s || a.field.localeCompare(b.field));
+
+  // summary
+  const min = Math.min(...res.played), max = Math.max(...res.played);
+  const counts = res.teams.map((t,i) => `${t}: ${res.played[i]}`).join(', ');
+  const sumDiv = document.createElement('div');
+  sumDiv.className = 'summary';
+  sumDiv.innerHTML = `<strong>${res.schedule.length}</strong> kamper. Hvert lag spiller <strong>${min===max?min:`${min}–${max}`}</strong> kamper. (${counts})` +
+    (res.target !== null && min < res.target ? ` <em>Mål ${res.target} kamper ikke nådd for alle – øk tidsrammen.</em>` : '');
+  out.appendChild(sumDiv);
+
+  // warnings
+  const uw = [...new Set(res.warnings)];
+  if (uw.length) {
+    const w = document.createElement('div');
+    w.className = 'warning';
+    w.innerHTML = '<strong>Merknader:</strong><br>' + uw.join('<br>');
+    out.appendChild(w);
+  }
+
+  // main flat table
+  const tbl = document.createElement('table');
+  tbl.innerHTML = `<thead><tr><th>Kampstart</th><th>Bane</th><th>Lag 1</th><th>Lag 2</th></tr></thead>
+    <tbody>${sorted.map(m=>`<tr><td><strong>${minToTime(m.s)}–${minToTime(m.e)}</strong></td><td>${esc(m.field)}</td><td>${esc(m.home)}</td><td>${esc(m.away)}</td></tr>`).join('')}</tbody>`;
+  out.appendChild(tbl);
+
+  // action buttons
+  const act = document.createElement('div');
+  act.className = 'table-actions';
+  act.innerHTML = `
+    <button id="btnCopy" class="secondary">Kopier som tabell</button>
+    <span id="copyFb" class="copy-feedback"></span>
+  `;
+  out.appendChild(act);
+  document.getElementById('btnCopy').addEventListener('click', () => copyTsv(sorted, res.duration));
+
+  // per-team cards
+  const h3 = document.createElement('div');
+  h3.className = 'section-heading';
+  h3.textContent = 'Kampoppsett per lag';
+  out.appendChild(h3);
+
+  const grid = document.createElement('div');
+  grid.className = 'team-grid';
+
+  res.teams.forEach((team, idx) => {
+    const matches = sorted.filter(m => m.home === team || m.away === team);
+    const card = document.createElement('div');
+    card.className = 'team-card';
+
+    const constraintMin = res.earliestOf[idx];
+    const constraintTag = constraintMin > res.startMin
+      ? `<div class="constraint-tag">Tidligste start: ${minToTime(constraintMin)}</div>` : '';
+
+    let rows = '';
+    let prevEnd = null;
+    matches.forEach(m => {
+      if (prevEnd !== null) {
+        const pause = m.s - prevEnd;
+        const cls = pause < res.minPause ? 'pause-warn' : '';
+        rows += `<tr class="pause-row ${cls}"><td colspan="3">↕ ${pause} min pause</td></tr>`;
+      }
+      const opp = m.home === team ? m.away : m.home;
+      rows += `<tr><td>${minToTime(m.s)}–${minToTime(m.e)}</td><td>${esc(m.field)}</td><td>${esc(opp)}</td></tr>`;
+      prevEnd = m.e;
+    });
+
+    card.innerHTML = `<h4>${esc(team)}</h4>${constraintTag}
+      <table><thead><tr><th>Tid</th><th>Bane</th><th>Mot</th></tr></thead><tbody>${rows}</tbody></table>`;
+    grid.appendChild(card);
+  });
+
+  out.appendChild(grid);
+}
+
+// ---------- Excel export ----------
+function sheet1(schedule, duration) {
+  const s = [...schedule].sort((a,b) => a.s-b.s || a.field.localeCompare(b.field));
+  return [['Kampstart','Bane','Lag 1','Lag 2'], ...s.map(m => [`${minToTime(m.s)}–${minToTime(m.e)}`, m.field, m.home, m.away])];
+}
+
+function sheet2(schedule, teams, duration) {
+  const s = [...schedule].sort((a,b) => a.s-b.s);
+  const data = [];
+  teams.forEach(team => {
+    data.push([team]);
+    data.push(['Kampstart','Bane','Lag 1','Lag 2']);
+    s.filter(m => m.home===team||m.away===team).forEach(m => data.push([`${minToTime(m.s)}–${minToTime(m.e)}`, m.field, m.home, m.away]));
+    data.push([]);
+  });
+  return data;
+}
+
+function sheet3(schedule, fields, duration) {
+  const s = [...schedule].sort((a,b) => a.s-b.s);
+  const data = [];
+  fields.forEach(field => {
+    data.push([field]);
+    data.push(['Kampstart','Lag 1','Lag 2']);
+    s.filter(m => m.field===field).forEach(m => data.push([`${minToTime(m.s)}–${minToTime(m.e)}`, m.home, m.away]));
+    data.push([]);
+  });
+  return data;
+}
+
+function downloadExcel(res) {
+  if (typeof XLSX === 'undefined') { alert('Excel-biblioteket er ikke lastet – sjekk internettforbindelsen.'); return; }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheet1(res.schedule, res.duration)), 'Kampoppsett');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheet2(res.schedule, res.teams, res.duration)), 'Per lag');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheet3(res.schedule, res.fields, res.duration)), 'Per bane');
+  const now = new Date();
+  const p = n => String(n).padStart(2,'0');
+  const fname = `kampoppsett_${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}_${p(now.getHours())}${p(now.getMinutes())}.xlsx`;
+  XLSX.writeFile(wb, fname);
+}
+
+function copyTsv(sorted, duration) {
+  const rows = [['Kampstart','Bane','Lag 1','Lag 2'], ...sorted.map(m => [`${minToTime(m.s)}–${minToTime(m.e)}`, m.field, m.home, m.away])];
+  navigator.clipboard.writeText(rows.map(r=>r.join('\t')).join('\n')).then(() => {
+    const fb = document.getElementById('copyFb');
+    fb.textContent = 'Kopiert!';
+    setTimeout(() => { fb.textContent=''; }, 2000);
+  }).catch(() => alert('Kopiering feilet – marker manuelt.'));
+}
+
+// ---------- Puljer ----------
+function autoGenPools(teams, clubOf, numPools) {
+  const pools = Array.from({length: numPools}, () => []);
+  const poolClubCount = Array.from({length: numPools}, () => ({}));
+  const indices = teams.map((_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  indices.forEach(tIdx => {
+    const club = clubOf[tIdx];
+    let bestPool = 0, bestScore = Infinity;
+    for (let p = 0; p < numPools; p++) {
+      const s = pools[p].length * 100 + (poolClubCount[p][club] || 0) * 1000;
+      if (s < bestScore) { bestScore = s; bestPool = p; }
+    }
+    pools[bestPool].push(tIdx);
+    poolClubCount[bestPool][club] = (poolClubCount[bestPool][club] || 0) + 1;
+  });
+  return pools;
+}
+
+function buildPoolOf(n, pools) {
+  const poolOf = new Array(n).fill(-1);
+  pools.forEach((p, pIdx) => p.forEach(tIdx => { poolOf[tIdx] = pIdx; }));
+  return poolOf;
+}
+
+function renderPools(pools, teams, clubOf) {
+  const container = document.getElementById('puljeDisplay');
+  container.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'pulje-grid';
+
+  pools.forEach((poolTeams, pIdx) => {
+    const card = document.createElement('div');
+    card.className = 'pulje-card';
+    card.dataset.pool = pIdx;
+
+    const header = document.createElement('div');
+    header.className = 'pulje-header';
+    header.innerHTML = `Pulje ${String.fromCharCode(65 + pIdx)}<span class="pulje-count">(${poolTeams.length} lag)</span>`;
+    card.appendChild(header);
+
+    poolTeams.forEach(tIdx => {
+      const chip = document.createElement('div');
+      chip.className = 'team-chip';
+      chip.textContent = teams[tIdx];
+      chip.draggable = true;
+
+      chip.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({ tIdx, fromPool: pIdx }));
+        setTimeout(() => chip.classList.add('dragging'), 0);
+      });
+      chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+      card.appendChild(chip);
+    });
+
+    card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
+    card.addEventListener('dragleave', e => { if (!card.contains(e.relatedTarget)) card.classList.remove('drag-over'); });
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const { tIdx, fromPool } = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (fromPool === pIdx) return;
+      const fi = currentPools[fromPool].indexOf(tIdx);
+      if (fi !== -1) {
+        currentPools[fromPool].splice(fi, 1);
+        currentPools[pIdx].push(tIdx);
+        renderPools(currentPools, currentPuljeTeams, currentPuljeClubOf);
+      }
+    });
+
+    const clubsInPool = poolTeams.map(i => clubOf[i]);
+    const dupes = [...new Set(clubsInPool.filter((c, i) => clubsInPool.indexOf(c) !== i))];
+    if (dupes.length) {
+      const warn = document.createElement('div');
+      warn.className = 'pulje-conflict';
+      warn.textContent = `Samme klubb i pulje: ${dupes.join(', ')}`;
+      card.appendChild(warn);
+    }
+
+    grid.appendChild(card);
+  });
+
+  container.appendChild(grid);
+}
+
+// ---------- Events ----------
+document.getElementById('generate').addEventListener('click', () => {
+  const out = document.getElementById('output');
+  try {
+    const cfg = readConfig();
+    if (cfg.errors.length) { out.innerHTML = `<p class="error">${cfg.errors.join('<br>')}</p>`; return; }
+    lastResult = generate(cfg);
+    render(lastResult);
+    document.getElementById('btnDownload').disabled = false;
+  } catch(err) {
+    out.innerHTML = `<p class="error">Feil: ${esc(err.message)}</p>`;
+    console.error(err);
+  }
+});
+
+document.getElementById('btnDownload').addEventListener('click', () => {
+  if (lastResult) downloadExcel(lastResult);
+});
+
+document.getElementById('clear').addEventListener('click', () => {
+  if (!confirm('Slette all input?')) return;
+  document.getElementById('clubsList').innerHTML = '';
+  initDefaultClubs();
+  document.getElementById('fields').value = 'Bane 1\nBane 2\nBane 3\nBane 4';
+  document.getElementById('start').value = '16:30';
+  document.getElementById('end').value = '19:30';
+  document.getElementById('duration').value = '13';
+  document.getElementById('minPause').value = '17';
+  document.getElementById('maxPause').value = '90';
+  document.getElementById('targetMatches').value = '4';
+  document.getElementById('output').innerHTML = '';
+  lastResult = null;
+  document.getElementById('btnDownload').disabled = true;
+});
+
+document.getElementById('usePuljer').addEventListener('change', e => {
+  const enabled = e.target.checked;
+  const cfg = document.getElementById('puljeConfig');
+  cfg.style.display = enabled ? 'flex' : 'none';
+  if (!enabled) {
+    document.getElementById('puljeDisplay').innerHTML = '';
+    currentPools = null;
+    currentPuljeTeams = null;
+    currentPuljeClubOf = null;
+  }
+});
+
+document.getElementById('btnGenPuljer').addEventListener('click', () => {
+  const cfg = readConfig();
+  if (cfg.errors && cfg.errors.length) { alert('Fiks feil først:\n' + cfg.errors.join('\n')); return; }
+  const numPools = Math.min(parseInt(document.getElementById('numPuljer').value, 10) || 4, cfg.teams.length);
+  currentPools = autoGenPools(cfg.teams, cfg.clubOf, numPools);
+  currentPuljeTeams = cfg.teams;
+  currentPuljeClubOf = cfg.clubOf;
+  renderPools(currentPools, cfg.teams, cfg.clubOf);
+});
+
+document.getElementById('addClub').addEventListener('click', () => {
+  if (readClubs().reduce((s,c)=>s+c.count,0) >= MAX_TEAMS) { alert(`Maks ${MAX_TEAMS} lag totalt.`); return; }
+  addClubRow();
+});
+
+function initDefaultClubs() {
+  addClubRow('Freidig', 4);
+  addClubRow('Strindheim', 4);
+  addClubRow('Bratsberg', 1);
+  addClubRow('Trond', 1);
+  addClubRow('Nidelv', 3);
+  addClubRow('Trygg/Lade', 3, '17:00', 1);
+}
+
+initDefaultClubs();
+attachTimeFormat(document.getElementById('start'));
+attachTimeFormat(document.getElementById('end'));
+</script>
+</body>
+</html>
