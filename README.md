@@ -12,7 +12,5 @@ Generatoren er utviklet for en case der én eller flere klubber har spesielle ø
 
 ### Puljer
 
-Generatoren er ment for å støtte puljer, men dette fungerer ikke helt som det skal per nå
-
-
+Generatoren støtter puljer med drag-and-drop justering. Lag spiller først round-robin innen sin pulje, og deretter mot lag fra andre puljer. Ingen lag møter samme motstander mer enn én gang.
 

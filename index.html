@@ -156,6 +156,26 @@
   .remove-btn:disabled { opacity: 0.25; cursor: not-allowed; }
   .remove-btn:disabled:hover { background: transparent; color: var(--muted); border-color: var(--line); }
 
+  /* Bane rows */
+  .bane-col-header {
+    display: grid;
+    grid-template-columns: 1fr 34px;
+    gap: 0.4rem;
+    padding: 0 0 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+  }
+  .bane-row {
+    display: grid;
+    grid-template-columns: 1fr 34px;
+    gap: 0.4rem;
+    margin-bottom: 0.45rem;
+    align-items: center;
+  }
+
   /* Output */
   #output { margin-top: 1.5rem; }
   .summary {
@@ -286,7 +306,7 @@
   <fieldset>
     <legend>Lag og baner</legend>
     <div style="margin-bottom:1.1rem">
-      <label>Klubber og antall lag <span class="hint">– maks 20 lag totalt</span></label>
+      <label>Klubber og antall lag</label>
       <div class="clubs-col-header">
         <span>Klubbnavn</span>
         <span>Lag</span>
@@ -299,11 +319,10 @@
       <p style="font-size:0.78rem;color:var(--muted);margin:0.4rem 0 0"><em>Unntak</em>: hvis «Tidligste start» er satt, kan dette antall lag fra klubben likevel starte fra arrangementets starttid.</p>
     </div>
     <div>
-      <label for="fields">Baner <span class="hint">– ett per linje</span></label>
-      <textarea id="fields">Bane 1
-Bane 2
-Bane 3
-Bane 4</textarea>
+      <label>Baner</label>
+      <div class="bane-col-header"><span>Banenavn</span><span></span></div>
+      <div id="baneList"></div>
+      <button type="button" id="addBane" class="secondary" style="margin-top:0.5rem;font-size:0.85rem;padding:0.4rem 0.8rem">+ Legg til bane</button>
     </div>
   </fieldset>
 
@@ -343,18 +362,11 @@ Bane 4</textarea>
       </div>
       <div>
         <label for="maxPause">Maks pause (min)</label>
-        <input type="number" id="maxPause" min="0" value="90">
+        <input type="number" id="maxPause" min="0" value="30">
       </div>
       <div>
         <label for="targetMatches">Kamper per lag <span class="hint">– tomt = maks mulig</span></label>
         <input type="number" id="targetMatches" min="1" value="4">
-      </div>
-      <div>
-        <label for="priority">Viktigst å overholde</label>
-        <select id="priority">
-          <option value="matches">Antall kamper (4 per lag)</option>
-          <option value="pause">Maks pause (noen kan få 3 kamper)</option>
-        </select>
       </div>
     </div>
   </fieldset>
@@ -371,7 +383,6 @@ Bane 4</textarea>
 <script>
 'use strict';
 
-const MAX_TEAMS = 20;
 let lastResult = null;
 let currentPools = null;
 let currentPuljeTeams = null;
@@ -404,7 +415,7 @@ function addClubRow(name='', count=1, earliest='', exceptions=0) {
   row.className = 'club-row';
   row.innerHTML = `
     <input type="text" class="club-name" placeholder="Klubbnavn" value="${esc(name)}">
-    <input type="number" class="club-count" min="1" max="${MAX_TEAMS}" value="${count}">
+    <input type="number" class="club-count" min="1" value="${count}">
     <input type="text" class="club-earliest time-field" value="${earliest}" placeholder="HH:MM" maxlength="5">
     <input type="number" class="club-exceptions" min="0" value="${exceptions}">
     <button type="button" class="remove-btn" title="Fjern">×</button>
@@ -413,6 +424,34 @@ function addClubRow(name='', count=1, earliest='', exceptions=0) {
   attachTimeFormat(row.querySelector('.club-earliest'));
   list.appendChild(row);
   syncRemoveButtons();
+}
+
+// ---------- Bane UI ----------
+function addBaneRow(name='') {
+  const list = document.getElementById('baneList');
+  const row = document.createElement('div');
+  row.className = 'bane-row';
+  row.innerHTML = `
+    <input type="text" class="bane-name" placeholder="Banenavn" value="${esc(name)}">
+    <button type="button" class="remove-btn" title="Fjern">×</button>
+  `;
+  row.querySelector('.remove-btn').addEventListener('click', () => { row.remove(); syncBaneRemoveButtons(); });
+  list.appendChild(row);
+  syncBaneRemoveButtons();
+}
+
+function syncBaneRemoveButtons() {
+  const rows = document.querySelectorAll('#baneList .bane-row');
+  rows.forEach(r => { r.querySelector('.remove-btn').disabled = rows.length <= 1; });
+}
+
+function readBanes() {
+  return [...document.querySelectorAll('#baneList .bane-name')]
+    .map(i => i.value.trim()).filter(Boolean);
+}
+
+function initDefaultBanes() {
+  ['Bane 1', 'Bane 2', 'Bane 3', 'Bane 4'].forEach(n => addBaneRow(n));
 }
 
 function syncRemoveButtons() {
@@ -446,7 +485,7 @@ function expandTeams(clubs, globalStartMin) {
 // ---------- Config ----------
 function readConfig() {
   const clubInputs = readClubs();
-  const fields = document.getElementById('fields').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const fields = readBanes();
   const start = document.getElementById('start').value;
   const end   = document.getElementById('end').value;
   const duration  = parseInt(document.getElementById('duration').value, 10);
@@ -454,12 +493,9 @@ function readConfig() {
   const maxPause  = parseInt(document.getElementById('maxPause').value, 10);
   const targetRaw  = document.getElementById('targetMatches').value.trim();
   const target     = targetRaw === '' ? null : parseInt(targetRaw, 10);
-  const strictPause = document.getElementById('priority').value === 'pause';
-
   const errors = [];
   const totalTeams = clubInputs.reduce((s,c) => s+c.count, 0);
   if (clubInputs.length < 2) errors.push('Minst 2 klubber kreves.');
-  if (totalTeams > MAX_TEAMS) errors.push(`Maks ${MAX_TEAMS} lag totalt (nå: ${totalTeams}).`);
   if (totalTeams < 2) errors.push('Minst 2 lag totalt.');
   if (!fields.length) errors.push('Minst 1 bane kreves.');
   if (!start || !end) errors.push('Start- og sluttid må settes.');
@@ -485,7 +521,7 @@ function readConfig() {
     }
   }
 
-  return { teams, clubOf, earliestOf, fields, startMin, endMin: timeToMin(end), duration, minPause, maxPause, target, strictPause, poolOf, errors: [] };
+  return { teams, clubOf, earliestOf, fields, startMin, endMin: timeToMin(end), duration, minPause, maxPause, target, poolOf, errors: [] };
 }
 
 // ---------- Scheduler ----------
@@ -494,7 +530,7 @@ function roundUpToQuarter(mins) {
 }
 
 function generate(cfg) {
-  const { teams, clubOf, earliestOf, fields, startMin, endMin, duration, minPause, maxPause, target, strictPause, poolOf } = cfg;
+  const { teams, clubOf, earliestOf, fields, startMin, endMin, duration, minPause, maxPause, target, poolOf } = cfg;
   const n = teams.length, nF = fields.length;
   const played     = new Array(n).fill(0);
   const lastEnd    = new Array(n).fill(-Infinity);
@@ -535,12 +571,11 @@ function generate(cfg) {
           if (target !== null && played[j] >= target) continue;
           if (slotStart < earliestOf[j]) continue;
           if (clubOf[i] === clubOf[j]) continue;
-          if (poolOf && poolOf[i] !== poolOf[j]) continue;
           if (pairPlayed[pk(i, j)]) continue;
           if (lastEnd[j] !== -Infinity && slotStart - lastEnd[j] < minPause) continue;
           if (clubCap !== null && (clubPlayed[i][clubOf[j]] || 0) >= clubCap) continue;
           if (clubCap !== null && (clubPlayed[j][clubOf[i]] || 0) >= clubCap) continue;
-          c.push({ i, j, score: score(i, j, played, pairPlayed, pk, lastEnd, slotStart, maxPause, clubOf, clubPlayed, strictPause, longPauseCount) });
+          c.push({ i, j, score: score(i, j, played, pairPlayed, pk, lastEnd, slotStart, maxPause, clubOf, clubPlayed, longPauseCount, poolOf) });
         }
       }
       return c;
@@ -574,20 +609,21 @@ function generate(cfg) {
   return { schedule, warnings, played, teams, fields, duration, target, earliestOf, startMin, minPause };
 }
 
-function score(i, j, played, pp, pk, lastEnd, t, maxPause, clubOf, clubPlayed, strictPause, longPauseCount) {
+function score(i, j, played, pp, pk, lastEnd, t, maxPause, clubOf, clubPlayed, longPauseCount, poolOf) {
   const base = Math.min(...played);
   const balance = (played[i] - base) + (played[j] - base);
   const clubRepI = clubPlayed[i][clubOf[j]] || 0;
   const clubRepJ = clubPlayed[j][clubOf[i]] || 0;
-  // Kvadratisk straff: 2. gang mot samme klubb koster 4x, 3. gang koster 9x
   const clubRepScore = (clubRepI * clubRepI + clubRepJ * clubRepJ) * 50000;
+  const crossPool = (poolOf && poolOf[i] !== poolOf[j]) ? 8000000 : 0;
   const wI = lastEnd[i] === -Infinity ? 0 : t - lastEnd[i];
   const wJ = lastEnd[j] === -Infinity ? 0 : t - lastEnd[j];
   const thr = maxPause * 0.5;
-  const baseUrgWeight = strictPause ? 60000 : 20000;
+  const baseUrgWeight = 20000;
   const urgI = Math.max(0, wI - thr) * (longPauseCount[i] >= 1 ? 500000 : baseUrgWeight);
   const urgJ = Math.max(0, wJ - thr) * (longPauseCount[j] >= 1 ? 500000 : baseUrgWeight);
   return -(urgI + urgJ)
+       + crossPool
        + clubRepScore
        + balance * 500
        + (played[i] + played[j]) * 10
@@ -837,12 +873,13 @@ document.getElementById('clear').addEventListener('click', () => {
   if (!confirm('Slette all input?')) return;
   document.getElementById('clubsList').innerHTML = '';
   initDefaultClubs();
-  document.getElementById('fields').value = 'Bane 1\nBane 2\nBane 3\nBane 4';
+  document.getElementById('baneList').innerHTML = '';
+  initDefaultBanes();
   document.getElementById('start').value = '16:30';
   document.getElementById('end').value = '19:30';
   document.getElementById('duration').value = '13';
   document.getElementById('minPause').value = '17';
-  document.getElementById('maxPause').value = '90';
+  document.getElementById('maxPause').value = '30';
   document.getElementById('targetMatches').value = '4';
   document.getElementById('output').innerHTML = '';
   lastResult = null;
@@ -872,7 +909,6 @@ document.getElementById('btnGenPuljer').addEventListener('click', () => {
 });
 
 document.getElementById('addClub').addEventListener('click', () => {
-  if (readClubs().reduce((s,c)=>s+c.count,0) >= MAX_TEAMS) { alert(`Maks ${MAX_TEAMS} lag totalt.`); return; }
   addClubRow();
 });
 
@@ -885,7 +921,10 @@ function initDefaultClubs() {
   addClubRow('Trygg/Lade', 3, '17:00', 1);
 }
 
+document.getElementById('addBane').addEventListener('click', () => addBaneRow());
+
 initDefaultClubs();
+initDefaultBanes();
 attachTimeFormat(document.getElementById('start'));
 attachTimeFormat(document.getElementById('end'));
 </script>
